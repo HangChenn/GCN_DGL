@@ -61,7 +61,6 @@ def main():
     model = Net(in_dim=1, hidden_dim=32, n_classes=max_node_num)
     loss_func = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    model.train()
 
     epoch_losses = []
     for epoch in range(201):

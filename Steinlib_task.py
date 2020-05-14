@@ -14,14 +14,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from dgl.nn.pytorch.conv import SAGEConv
-from generate_dataset import generate_steiner_graphs
+from dgl.nn.pytorch.conv import SAGEConv, GatedGraphConv
+from load_dataset import load_steinlib_graphs
 
 class Net(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes):
         super(Net, self).__init__()
         self.layers = nn.ModuleList([
             SAGEConv(in_dim, hidden_dim, aggregator_type='mean'), # need to change if we have more node or edge features 
+            SAGEConv(hidden_dim, hidden_dim, aggregator_type='mean'),
             SAGEConv(hidden_dim, hidden_dim, aggregator_type='mean'),
             SAGEConv(hidden_dim, hidden_dim, aggregator_type='mean')
             ])
@@ -44,8 +45,8 @@ def collate(samples):
 
 def main():
 
-    trainset = generate_steiner_graphs(400, range(10,201,10))
-    testset = generate_steiner_graphs(200, range(10,201,10))
+    trainset = load_steinlib_graphs()
+    testset = trainset.get_testset()
 
     # Use PyTorch's DataLoader and the collate function
     # defined before.

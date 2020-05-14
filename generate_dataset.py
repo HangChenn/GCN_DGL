@@ -266,8 +266,8 @@ class generate_steiner_graphs(object):
         """
         def __convert_g(g, node_list, edge_list):
             dgl_g = dgl.DGLGraph()
-            dgl_g.from_networkx(g, edge_attrs=['weight'])
-        
+            # dgl_g.from_networkx(g, edge_attrs=['weight'])
+            dgl_g.from_networkx(g)
             dgl_g.nodes[node_list].data['p'] = th.ones((len(node_list), 1))
 
             if self.node_task:
@@ -291,18 +291,18 @@ class generate_steiner_graphs(object):
                         break
                 copy_g = g.copy()
                 node_list = list(g.nodes)
-                weight = {}
-                for e in g.edges():
-                    # random set edge weight from 1 to 10
-                    weight[e] = { 'weight' : np.random.randint(low=1, high=10)}
-                nx.set_edge_attributes(copy_g, weight)
+                # weight = {}
+                # for e in g.edges():
+                #     # random set edge weight from 1 to 10
+                #     weight[e] = { 'weight' : np.random.randint(low=1, high=10)}
+                # nx.set_edge_attributes(copy_g, weight)
                 # print(g.edges.data())
 
                 # assign terminal randomly to nodes
                 np.random.shuffle(node_list)
-                first_half_node_l = node_list[:int(0.5*len(node_list))]
+                first_half_node_l = node_list[:int(0.2*len(node_list))]
 
                 # calculate steiner tree
                 ST_f = steiner_tree(copy_g, first_half_node_l)
                 
-                self.graphs.append(__convert_g(copy_g, ST_f.nodes(), ST_f.edges()))
+                self.graphs.append(__convert_g(copy_g, first_half_node_l, ST_f.edges()))
