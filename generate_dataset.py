@@ -6,6 +6,8 @@ import numpy as np
 import math
 
 
+import statistics 
+
 class generate_connected_graphs_G_classfication(object):
     """The dataset class.
     Parameters
@@ -124,6 +126,15 @@ class generate_connected_graphs_N_classfication(object):
         self._generate()
         np.random.shuffle(self.graphs)
         self.graphs = self.graphs[:num_graphs]
+        # statistics.median([nx.radius(g.to_networkx().to_undirected()) 
+        #     if not nx.is_connected(g.to_networkx().to_undirected()) else 0 for g ,_ in self.graphs])
+        radius = []
+        for g ,_ in self.graphs:
+            g = g.to_networkx().to_undirected()
+            if not nx.is_connected(g):
+                radius.append(max([nx.radius(g.subgraph(c).copy()) for c in nx.connected_components(g)]))
+
+        print( 'median radius: ',statistics.median(radius), sep='')
 
         
 
@@ -218,18 +229,23 @@ class generate_steiner_graphs(object):
     num_v: list of int
         number of v for graph.
     """
-    def __init__(self, num_graphs, v_list):
+    def __init__(self, num_graphs, v_list, save_file=False):
         self.node_task = True
+        self.save_file=save_file
 
         self.num_graphs = num_graphs
         self.v_list = v_list
+
         # graphs is list of tuple with (DGLGraph, label_list)
         self.graphs = []
 
         self._generate()
         np.random.shuffle(self.graphs)
         self.graphs = self.graphs[:num_graphs]
-
+        
+        
+        statistics.median([nx.radius(g.to_networkx().to_undirected()) 
+           if not nx.is_connected(g.to_networkx().to_undirected()) else 0 for g ,_ in self.graphs])
 
     def __len__(self):
         """Return the number of graphs in the dataset."""
@@ -284,25 +300,52 @@ class generate_steiner_graphs(object):
 
 
         for v in self.v_list:
-            for _ in range(math.ceil(n/len(self.v_list))):
+            for nums in range(math.ceil(n/len(self.v_list))):
                 while True:
-                    g = nx.fast_gnp_random_graph(v, (1+1)*math.log(v)/v)
+                    g = nx.fast_gnp_random_graph(v, (4)*math.log(v)/v)
                     if nx.is_connected(g):
                         break
                 copy_g = g.copy()
                 node_list = list(g.nodes)
-                # weight = {}
-                # for e in g.edges():
-                #     # random set edge weight from 1 to 10
-                #     weight[e] = { 'weight' : np.random.randint(low=1, high=10)}
-                # nx.set_edge_attributes(copy_g, weight)
+                weight = {}
+                for e in g.edges():
+                    # random set edge weight from 1 to 10
+                    weight[e] = { 'weight' : np.random.randint(low=1, high=10)}
+                nx.set_edge_attributes(copy_g, weight)
                 # print(g.edges.data())
 
                 # assign terminal randomly to nodes
                 np.random.shuffle(node_list)
-                first_half_node_l = node_list[:int(0.2*len(node_list))]
+                terminal_node = node_list[:int(0.1*len(node_list))]
 
                 # calculate steiner tree
-                ST_f = steiner_tree(copy_g, first_half_node_l)
-                
-                self.graphs.append(__convert_g(copy_g, first_half_node_l, ST_f.edges()))
+                ST_f = steiner_tree(copy_g, terminal_node)
+                if self.save_file:
+                    write_file("./ER_4logn_task/4logn_"+str(v)+'_'+str(nums), copy_g, terminal_node)
+                self.graphs.append(__convert_g(copy_g, terminal_node, ST_f.edges()))
+
+def write_file(file_name, nx_graph, terminals):
+
+    def _write_file(file_name, levels, nodes, edges, Ts):
+        f = open(file_name+".txt", "w")
+        f.write(str(len(edges))+"\n")
+        for i in range(len(edges)):
+            f.write(str(edges[i][0]) + " " + str(edges[i][1]) + " " + str(int(edges[i][2])) + "\n")
+        f.write(str(levels)+"\n")
+        Ts_per_level = len(Ts)/levels
+        for l in range(levels):
+            nTs = len(Ts[l])
+            t_str = str(Ts[l][0])
+            for i in range(1, nTs):
+                t_str += " " + str(Ts[l][i])
+            f.write(t_str+"\n")
+        f.close()
+
+    nx_edges = []
+    for u,v in nx_graph.edges():
+        edge = [u,v]
+        edge.append(1)
+        # edge.append(nx_graph[u][v]['weight'])
+        nx_edges.append(edge)
+
+    _write_file(file_name, 1, nx_graph.nodes, nx_edges, [terminals])

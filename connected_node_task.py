@@ -13,6 +13,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from dgl.nn.pytorch.conv import SAGEConv
+
+from sklearn.metrics import confusion_matrix
+
 from generate_dataset import generate_connected_graphs_N_classfication
 
 
@@ -22,9 +25,9 @@ class Net(nn.Module):
         super(Net, self).__init__()
 
         self.layers = nn.ModuleList([
-            SAGEConv(in_dim, hidden_dim, aggregator_type='mean'),
+            SAGEConv(in_dim, hidden_dim, aggregator_type='lstm'),
             # SAGEConv(hidden_dim, hidden_dim, aggregator_type='mean'),
-            SAGEConv(hidden_dim, hidden_dim, aggregator_type='mean')
+            SAGEConv(hidden_dim, hidden_dim, aggregator_type='lstm')
             ])
         self.linear = nn.Linear(hidden_dim, n_classes)  # predice classes
 
@@ -58,7 +61,7 @@ def main():
                              collate_fn=collate)
 
     # Create model, n_classes is random node id. noticed, this is only in training
-    model = Net(in_dim=1, hidden_dim=32, n_classes=max_node_num)
+    model = Net(in_dim=1, hidden_dim=8, n_classes=max_node_num)
     loss_func = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -98,9 +101,11 @@ def main():
             argmax_Y = new_argmax_Y
 
             # convert node label to graph label
-            test_Y = th.tensor([1 if len(list(np.unique(la))) > 1 else 0 for la in test_Y])
-            argmax_Y = th.tensor([1 if len(list(np.unique(la))) > 1 else 0 for la in argmax_Y])
-
+            # test_Y = th.tensor([1 if len(list(np.unique(la))) > 1 else 0 for la in test_Y])
+            # argmax_Y = th.tensor([1 if len(list(np.unique(la))) > 1 else 0 for la in argmax_Y])
+            test_Y = th.tensor([len(list(np.unique(la))) for la in test_Y])
+            argmax_Y = th.tensor([len(list(np.unique(la))) for la in argmax_Y])
+            print(confusion_matrix(test_Y, argmax_Y))
 
             print('Accuracy of argmax predictions on the test set: {:4f}%'.format(
                  (test_Y == argmax_Y.float()).sum().item() / len(test_Y) * 100))

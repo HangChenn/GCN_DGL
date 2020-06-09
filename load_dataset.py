@@ -19,10 +19,10 @@ class load_steinlib_graphs(object):
     num_v: list of int
         number of v for graph.
     """
-    def __init__(self):
+    def __init__(self, task='I080_node_weight'):
         self.graphs = []
 
-        self._load_Steinlib()
+        self._load_Steinlib(task)
 
         np.random.shuffle(self.graphs)
 
@@ -45,7 +45,7 @@ class load_steinlib_graphs(object):
     def get_testset(self):
         return load_dataset(self.test)
 
-    def _load_Steinlib(self):
+    def _load_Steinlib(self, task):
         """ 
         Input:  g: networkx graph, 
                 node_list: steiner tree terminal, 
@@ -58,20 +58,45 @@ class load_steinlib_graphs(object):
         """
         def __convert_g(g, node_list, label):
             dgl_g = dgl.DGLGraph()
-            dgl_g.from_networkx(g, edge_attrs=['weight'])       
-            dgl_g.nodes[node_list].data['p'] = th.ones((len(node_list), 1))
+            if bool(nx.get_node_attributes(g, 'node_weight')):
+                dgl_g.from_networkx(g, node_attrs=['node_weight'], edge_attrs=['weight']) 
+            else:
+                dgl_g.from_networkx(g, edge_attrs=['weight'])       
+            dgl_g.nodes[node_list].data['t'] = th.ones((len(node_list), 1))
+            dgl_g.ndata['p'] = dgl_g.ndata['t']
+            if bool(nx.get_node_attributes(g, 'node_weight')):
+                dgl_g.ndata['p'] = th.cat(  (dgl_g.ndata['p'],
+                                            dgl_g.ndata['node_weight'].view(-1,1).float())
+                                            ,1)
+
             return dgl_g, label
         
-        filename = './I080_graphs/I080/i080-002_1.txt'
-        I080_graph_path = './I080_task/I080_task_graph/'
-        I080_solution_path = './I080_task/I080_task_solution/'
-        filenames = [f for f in listdir(I080_graph_path) if isfile(join(I080_graph_path, f))]
+        if task == 'I080':
+            graph_path = './I080_task/I080_task_graph/'
+            solution_path = './I080_task/I080_task_solution/'
+        if task == 'I080_subdivide':
+            graph_path = './I080_task/subdivide/graph/'
+            solution_path = './I080_task/subdivide/solution/'
+        if task == 'I080_node_weight':
+            graph_path = './I080_task/node_weight/graph/'
+            solution_path = './I080_task/node_weight/solution/'
+        if task == 'ER_4logn':
+            graph_path = './ER_4logn_task/graph/'
+            solution_path = './ER_4logn_task/solution/'
 
+        filenames = [f.rstrip('.txt') for f in listdir(graph_path) if isfile(join(graph_path, f))]
+        if task == 'ER_4logn':
+            filenames = [f.rstrip('_output.txt') for f in listdir(solution_path) if isfile(join(solution_path, f))]
+        print(filenames[0])
         for filename in filenames:
-            filename = filename.rstrip('.txt')
-            Stein_graph, Ts = build_networkx_graph(I080_graph_path+filename+'.txt')
+            Stein_graph, Ts = build_networkx_graph(graph_path+filename+'.txt')
             Ts = Ts[0]
-            edge_list, _  = take_input(I080_solution_path+filename+'_output.txt')
+            if task == 'I080' or task == 'ER_4logn':
+                edge_list, _, _  = take_input(solution_path+filename+'_output.txt')
+            if task == 'I080_subdivide':
+                edge_list, _, _  = take_input(solution_path+filename.rstrip('_subdivided')+'_output_subdivided.txt')
+            if task == 'I080_node_weight':
+                edge_list, _, _  = take_input(solution_path+filename.rstrip('_node_weighted')+'_output_node_weighted.txt')
 
             n_label = th.zeros([Stein_graph.number_of_nodes(),1])
             for u, v, _ in edge_list:

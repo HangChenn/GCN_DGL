@@ -32,6 +32,16 @@ def take_input(input_file):
   #print(l)
   if not is_comment(l):
    break
+ nodes_weight = {}
+ if l == "Nodes\n":
+  l = file.readline()
+  l = file.readline().rstrip('\n').split()
+  while len(l) == 2:
+   nodes_weight[int(l[0])] = {'node_weight' :int(l[1]) }
+   l = file.readline().rstrip('\n').split()
+
+ if bool(nodes_weight):
+  l = file.readline()
  m = int(l)
  edge_list = list()
  for i in range(m):
@@ -61,7 +71,7 @@ def take_input(input_file):
   tree_ver.append([(int(x)) for x in file.readline().split()])
 
  file.close()
- return edge_list, tree_ver
+ return edge_list, tree_ver, nodes_weight
 
 def take_non_uniform_input(input_file):
  file = open(input_file,"r")
@@ -164,10 +174,14 @@ def txt_to_json(input_file, output_file):
 
 # this function directly builds a networkx graph from a txt file
 def build_networkx_graph(filename):
- edge_list, tree_vers  = take_input(filename)
+ edge_list, tree_vers, nodes_weight  = take_input(filename)
  G=nx.Graph()
  for e in edge_list:
   G.add_weighted_edges_from([(e[0], e[1], e[2])])
+ # node_weight is empty, them don't set node attribute
+ if bool(nodes_weight):
+  nx.set_node_attributes(G, nodes_weight)
+
  return G, tree_vers
 
 # this function directly builds a networkx graph from a txt file
